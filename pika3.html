@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pikachu Power - Full Power Edition</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #050505; font-family: 'Segoe UI', Arial, sans-serif; }
+        
+        #instruction {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            color: #ffcc00;
+            pointer-events: none;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            font-size: 14px;
+            text-shadow: 0 0 10px rgba(255, 204, 0, 0.8);
+            z-index: 10;
+        }
+
+        #bar-container {
+            position: absolute;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 250px;
+            height: 12px;
+            border: 2px solid #ffcc00;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            display: none;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        #bar-fill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #ff8800, #ffcc00);
+            box-shadow: 0 0 15px #ffcc00;
+        }
+    </style>
+</head>
+<body>
+    <div id="instruction">Tieni premuto su Pikachu per caricare il Ki</div>
+    <div id="bar-container"><div id="bar-fill"></div></div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // --- 1. SETUP CORE ---
+        const scene = new THREE.Scene();
+        window.scene = scene;
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+        camera.position.z = 5;
+
+        // --- 2. TEXTURE PIKACHU (CANVAS) ---
+        const canvas = document.createElement('canvas');
+        canvas.width = 512; canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+
+        function drawKame(isGlowing = false, charge = 0) {
+            ctx.clearRect(0, 0, 512, 512);
+            
+            if (isGlowing) {
+                ctx.shadowBlur = 20 + (charge * 0.5);
+                ctx.shadowColor = "#ffaa00";
+            } else {
+                ctx.shadowBlur = 0;
+            }
+
+            // Orecchia Sinistra (Alzata)
+            ctx.save();
+            ctx.translate(160, 130);
+            ctx.rotate(-Math.PI / 6);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 25, 90, 0, 0, Math.PI * 2);
+            ctx.fillStyle = "#FFDE00";
+            ctx.fill();
+            ctx.strokeStyle = "black";
+            ctx.lineWidth = 8;
+            ctx.stroke();
+            ctx.clip();
+            ctx.fillStyle = "black";
+            ctx.fillRect(-30, -90, 60, 45);
+            ctx.restore();
+
+            // Orecchia Destra (Alzata)
+            ctx.save();
+            ctx.translate(352, 130);
+            ctx.rotate(Math.PI / 6);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 25, 90, 0, 0, Math.PI * 2);
+            ctx.fillStyle = "#FFDE00";
+            ctx.fill();
+            ctx.strokeStyle = "black";
+            ctx.lineWidth = 8;
+            ctx.stroke();
+            ctx.clip();
+            ctx.fillStyle = "black";
+            ctx.fillRect(-30, -90, 60, 45);
+            ctx.restore();
+
+            // Testa (Nessun contorno guancia-guancia, solo perimetro esterno)
+            ctx.beginPath();
+            ctx.arc(256, 300, 160, 0, Math.PI * 2);
+            ctx.fillStyle = "#FFDE00";
+            ctx.fill();
+            ctx.strokeStyle = "black";
+            ctx.lineWidth = 10;
+            ctx.stroke();
+
+            // Occhi
+            ctx.fillStyle = "black";
+            ctx.beginPath();
+            ctx.arc(190, 290, 20, 0, Math.PI * 2); // Sinistro
+            ctx.arc(322, 290, 20, 0, Math.PI * 2); // Destro
+            ctx.fill();
+            
+            ctx.fillStyle = "white";
+            ctx.beginPath();
+            ctx.arc(200, 282, 7, 0, Math.PI * 2);
+            ctx.arc(332, 282, 7, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Guance
+            ctx.fillStyle = "#FF0000";
+            ctx.beginPath();
+            ctx.arc(145, 360, 32, 0, Math.PI * 2); // Sinistra
+            ctx.arc(367, 360, 32, 0, Math.PI * 2); // Destra
+            ctx.fill();
+
+            // Naso
+            ctx.fillStyle = "black";
+            ctx.beginPath();
+            ctx.moveTo(251, 325);
+            ctx.quadraticCurveTo(256, 332, 261, 325);
+            ctx.fill();
+
+            // Bocca
+            ctx.beginPath();
+            ctx.moveTo(226, 350);
+            ctx.quadraticCurveTo(241, 365, 256, 350);
+            ctx.quadraticCurveTo(271, 365, 286, 350);
+            ctx.strokeStyle = "black";
+            ctx.lineWidth = 5;
+            ctx.lineCap = "round";
+            ctx.stroke();
+        }
+        
+        drawKame();
+        const texture = new THREE.CanvasTexture(canvas);
+
+        const mesh = new THREE.Mesh(
+            new THREE.CircleGeometry(2, 64),
+            new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide })
+        );
+        scene.add(mesh);
+        window.mesh = mesh;
+
+        // --- 3. PARTICELLE SAIYAN & SCINTILLE ---
+        class SuperSaiyanSystem {
+            constructor() {
+                this.count = 2500;
+                this.geo = new THREE.BufferGeometry();
+                this.pos = new Float32Array(this.count * 3);
+                this.cols = new Float32Array(this.count * 3);
+                this.vels = [];
+                for (let i = 0; i < this.count; i++) {
+                    this.pos[i*3] = this.pos[i*3+1] = this.pos[i*3+2] = 0;
+                    this.vels.push(new THREE.Vector3());
+                }
+                this.geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3));
+                this.geo.setAttribute('color', new THREE.BufferAttribute(this.cols, 3));
+                this.mat = new THREE.PointsMaterial({ size: 0.07, vertexColors: true, transparent: true, opacity: 0, blending: THREE.AdditiveBlending });
+                this.points = new THREE.Points(this.geo, this.mat);
+                scene.add(this.points);
+
+                this.sparks = [];
+                for(let i=0; i<10; i++) {
+                    const l = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x88ffff, transparent: true, opacity: 0 }));
+                    this.sparks.push({ line: l, life: 0 });
+                    scene.add(l);
+                }
+            }
+
+            emit(power = 1) {
+                this.mat.opacity = 1;
+                for (let i = 0; i < this.count; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = (0.05 + Math.random() * 0.15) * power;
+                    this.vels[i].set(Math.cos(angle)*speed, Math.sin(angle)*speed, (Math.random()-0.5)*0.1);
+                    this.pos[i*3] = (Math.random()-0.5)*0.5;
+                    this.pos[i*3+1] = (Math.random()-0.5)*0.5;
+                    this.cols[i*3] = 1; this.cols[i*3+1] = 0.5 + Math.random()*0.5; this.cols[i*3+2] = 0;
+                }
+            }
+
+            update() {
+                const p = this.geo.attributes.position.array;
+                for (let i = 0; i < this.count; i++) {
+                    p[i*3] += this.vels[i].x; p[i*3+1] += this.vels[i].y; p[i*3+2] += this.vels[i].z;
+                    this.vels[i].y += 0.003; 
+                }
+                this.geo.attributes.position.needsUpdate = true;
+                if(this.mat.opacity > 0) this.mat.opacity -= 0.01;
+
+                if(Math.random() > 0.9) {
+                    const s = this.sparks[Math.floor(Math.random()*10)];
+                    s.life = 1;
+                    const pts = [new THREE.Vector3((Math.random()-0.5)*4, (Math.random()-0.5)*4, 0)];
+                    for(let j=0; j<3; j++) pts.push(pts[j].clone().add(new THREE.Vector3((Math.random()-0.5)*1, (Math.random()-0.5)*1, 0)));
+                    s.line.geometry.setFromPoints(pts);
+                }
+                this.sparks.forEach(s => { 
+                    if(s.life > 0) { s.life -= 0.1; s.line.material.opacity = s.life; }
+                });
+            }
+        }
+        const saiyan = new SuperSaiyanSystem();
+
+        // --- 4. AUDIO ENGINE ---
+        let audioCtx, oscillator, gainNode;
+        function startAudio() {
+            if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            oscillator = audioCtx.createOscillator();
+            gainNode = audioCtx.createGain();
+            oscillator.type = 'sawtooth';
+            oscillator.frequency.setValueAtTime(50, audioCtx.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(250, audioCtx.currentTime + 3);
+            gainNode.gain.setValueAtTime(0.01, audioCtx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 2);
+            oscillator.connect(gainNode); gainNode.connect(audioCtx.destination);
+            oscillator.start();
+        }
+        function stopAudio(isFull) {
+            if(oscillator) {
+                if(isFull) { oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); }
+                gainNode.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                oscillator.stop(audioCtx.currentTime + 0.2);
+            }
+        }
+
+        // --- 5. LOGICA CARICAMENTO ---
+        let charge = 0, isCharging = false, targetScale = 1;
+        const raycaster = new THREE.Raycaster(), mouse = new THREE.Vector2();
+        const barContainer = document.getElementById('bar-container'), barFill = document.getElementById('bar-fill');
+
+        function onDown(e) {
+            const x = e.touches ? e.touches[0].clientX : e.clientX;
+            const y = e.touches ? e.touches[0].clientY : e.clientY;
+            mouse.x = (x / window.innerWidth) * 2 - 1; mouse.y = -(y / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            if(raycaster.intersectObject(mesh).length > 0) {
+                isCharging = true; barContainer.style.display = 'block';
+                startAudio(); drawKame(true, charge); texture.needsUpdate = true;
+            }
+        }
+
+        function onUp() {
+            if(!isCharging) return;
+            if(charge >= 100) { saiyan.emit(3); targetScale = 1.8; setTimeout(()=>targetScale=1, 400); stopAudio(true); }
+            else { stopAudio(false); }
+            isCharging = false; charge = 0; barFill.style.width = '0%'; barContainer.style.display = 'none';
+            drawKame(false); texture.needsUpdate = true;
+        }
+
+        window.addEventListener('mousedown', onDown); window.addEventListener('mouseup', onUp);
+        window.addEventListener('touchstart', onDown); window.addEventListener('touchend', onUp);
+
+        // --- 6. ANIMATION LOOP ---
+        function animate() {
+            requestAnimationFrame(animate);
+            mesh.rotation.y += 0.01;
+            mesh.position.y = Math.sin(Date.now() * 0.002) * 0.15;
+
+            if(isCharging) {
+                charge = Math.min(charge + 0.7, 100);
+                barFill.style.width = charge + '%';
+                mesh.position.x = (Math.random()-0.5) * (charge/300);
+                if(Math.random() > 0.8) saiyan.emit(0.5);
+                targetScale = 1 + (charge/200);
+                drawKame(true, charge); texture.needsUpdate = true;
+            }
+            
+            mesh.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
+            saiyan.update();
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        const fragments = [];
+        const fragmentCount = 60;
+
+        function createExplosion(x, y, z) {
+            const geo = new THREE.BoxGeometry(0.15, 0.15, 0.15);
+            for (let i = 0; i < fragmentCount; i++) {
+                const mat = new THREE.MeshBasicMaterial({ 
+                    color: Math.random() > 0.5 ? 0xffcc00 : 0xffffff,
+                    transparent: true,
+                    opacity: 1
+                });
+                const part = new THREE.Mesh(geo, mat);
+                part.position.set(x, y, z);
+                const force = 0.3;
+                part.userData.velocity = new THREE.Vector3((Math.random() - 0.5) * force, (Math.random() - 0.5) * force, (Math.random() - 0.5) * force);
+                part.userData.life = 1.0;
+                window.scene.add(part);
+                fragments.push(part);
+            }
+            const lightGeo = new THREE.SphereGeometry(1, 32, 32);
+            const lightMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
+            const flash = new THREE.Mesh(lightGeo, lightMat);
+            flash.position.set(x, y, z);
+            window.scene.add(flash);
+            fragments.push(flash);
+            flash.userData.velocity = new THREE.Vector3(0,0,0);
+            flash.userData.isFlash = true;
+            flash.userData.life = 1.0;
+        }
+
+        function updateFragments() {
+            for (let i = fragments.length - 1; i >= 0; i--) {
+                const f = fragments[i];
+                f.position.add(f.userData.velocity);
+                f.userData.life -= 0.02;
+                f.material.opacity = f.userData.life;
+                if (f.userData.isFlash) f.scale.multiplyScalar(1.05);
+                if (f.userData.life <= 0) {
+                    window.scene.remove(f);
+                    fragments.splice(i, 1);
+                }
+            }
+            requestAnimationFrame(updateFragments);
+        }
+
+        setInterval(() => {
+            const mainMesh = window.scene?.children.find(c => c.type === "Mesh" && c.geometry.type === "CircleGeometry");
+            if (!mainMesh) return;
+            if (mainMesh.scale.x > 1.7 && !mainMesh.userData.exploded) {
+                 createExplosion(mainMesh.position.x, mainMesh.position.y, mainMesh.position.z);
+                 mainMesh.visible = false;
+                 mainMesh.userData.exploded = true;
+                 setTimeout(() => {
+                     mainMesh.visible = true;
+                     mainMesh.userData.exploded = false;
+                 }, 2000);
+            }
+        }, 100);
+
+        updateFragments();
+    </script>
+    <script type="module">
+    // Creazione dell'elemento testuale
+    const haterMessage = document.createElement('div');
+    haterMessage.style.position = 'absolute';
+    haterMessage.style.top = '50%';
+    haterMessage.style.left = '50%';
+    haterMessage.style.transform = 'translate(-50%, -50%)';
+    haterMessage.style.color = '#ff4444';
+    haterMessage.style.fontSize = '32px';
+    haterMessage.style.fontWeight = 'bold';
+    haterMessage.style.textAlign = 'center';
+    haterMessage.style.textTransform = 'uppercase';
+    haterMessage.style.textShadow = '0 0 20px rgba(255, 0, 0, 0.7)';
+    haterMessage.style.display = 'none';
+    haterMessage.style.zIndex = '100';
+    haterMessage.style.pointerEvents = 'none';
+    haterMessage.innerText = 'Complimenti,\nsei un vero hater di Pikachu';
+    document.body.appendChild(haterMessage);
+
+    // Monitoraggio dell'esplosione
+    setInterval(() => {
+        const mainMesh = window.scene?.children.find(c => c.type === "Mesh" && c.geometry.type === "CircleGeometry");
+        if (mainMesh && mainMesh.userData.exploded) {
+            haterMessage.style.display = 'block';
+        } else {
+            haterMessage.style.display = 'none';
+        }
+    }, 100);
+</script>
+</body>
+</html>
